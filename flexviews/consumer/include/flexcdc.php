@@ -1113,6 +1113,8 @@ EOREGEX;
 					$sql = substr($sql, -3) . ';';
 				} elseif (substr($sql, -4) === '/*!;') {
 					$sql = substr($sql, -4) . ';';
+				} elseif (substr($sql, -8) === '*//*!*/;') {
+					$sql = substr($sql, -8) . ';';
 				}
 
 				my_mysql_query($sql, $this->dest);
