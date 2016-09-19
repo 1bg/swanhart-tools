@@ -1,0 +1,15 @@
+{
+  "name": "obg/swanhart-tools",
+  "type": "library",
+  "description": "Swanhart Tools",
+  "keywords": ["Swanhart"],
+  "authors": [
+    {
+      "name": "Andy O'Brien",
+      "email": "andy@1bg.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.4"
+  }
+}
