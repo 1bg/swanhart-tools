@@ -2,7 +2,9 @@
   "name": "obg/swanhart-tools",
   "type": "library",
   "description": "Swanhart Tools",
-  "keywords": ["Swanhart"],
+  "keywords": [
+    "Swanhart"
+  ],
   "authors": [
     {
       "name": "Andy O'Brien",
