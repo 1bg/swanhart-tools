@@ -1108,14 +1108,8 @@ EOREGEX;
 				break;
 
 			case 'SET':
-				// TODO: temporary fix for MariaDB comments
-				if (substr($sql, -3) === '/*;') {
-					$sql = substr($sql, -3) . ';';
-				} elseif (substr($sql, -4) === '/*!;') {
-					$sql = substr($sql, -4) . ';';
-				} elseif (substr($sql, -8) === '*//*!*/;') {
-					$sql = substr($sql, -8) . ';';
-				}
+				// TODO: temporary fix for MariaDB comments, this is disgusting
+				$sql = str_replace(['/', '*', '!'], '', $sql);
 
 				my_mysql_query($sql, $this->dest);
 				break;
