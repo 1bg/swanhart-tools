@@ -1108,6 +1108,13 @@ EOREGEX;
 				break;
 
 			case 'SET':
+				// TODO: temporary fix for MariaDB comments
+				if (substr($sql, -3) === '/*;') {
+					$sql = substr($sql, -3) . ';';
+				} elseif (substr($sql, -4) === '/*!;') {
+					$sql = substr($sql, -4) . ';';
+				}
+
 				my_mysql_query($sql, $this->dest);
 				break;
 
@@ -1412,8 +1419,8 @@ EOREGEX;
 			$matches = [];
 
 			#Control information from MySQLbinlog is prefixed with a hash comment.
-			if ($prefix[0] == "#") {
-				$binlogStatement = "";
+			if ($prefix !== '' && $prefix[0] === '#') {
+				$binlogStatement = '';
 				if (preg_match(
 					'/^#([0-9]+\s+[0-9:]+)\s+server\s+id\s+([0-9]+)\s+end_log_pos ([0-9]+)(.*)/',
 					$line,
