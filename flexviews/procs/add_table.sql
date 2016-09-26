@@ -54,7 +54,8 @@ CREATE DEFINER=`flexviews`@`localhost` PROCEDURE `flexviews`.`add_table`(
   IN v_mview_table_schema TEXT CHARACTER SET UTF8,
   IN v_mview_table_name TEXT CHARACTER SET UTF8, 
   IN v_mview_table_alias TEXT CHARACTER SET UTF8,
-  IN v_mview_join_condition TEXT CHARACTER SET UTF8
+  IN v_mview_join_condition TEXT CHARACTER SET UTF8,
+  IN v_mview_join_order INT
 )
 BEGIN
 
@@ -64,6 +65,10 @@ BEGIN
 
   IF flexviews.is_enabled(v_mview_id) = 1 THEN
     CALL flexviews.fv_raise('ERROR', 31002, '[flexviews.add_table] May not modify an enabled MVIEW'); -- MAY_NOT_MODIFY_ENABLED_MVIEW
+  END IF;
+
+  IF v_mview_join_order IS NULL THEN
+    SET v_mview_join_order = 999;
   END IF;
 
   SET @v_exists = false;
@@ -101,14 +106,16 @@ BEGIN
   (  mview_id,
      mview_table_name,
      mview_table_schema,
-     mview_table_alias, 
-     mview_join_condition )
+     mview_table_alias,
+     mview_join_condition,
+     mview_join_order )
   VALUES
   (  v_mview_id,
      v_mview_table_name,
-     v_mview_table_schema, 
-     v_mview_table_alias, 
-     v_mview_join_condition );
+     v_mview_table_schema,
+     v_mview_table_alias,
+     v_mview_join_condition,
+     v_mview_join_order );
 
 END ;;
 

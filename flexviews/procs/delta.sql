@@ -469,7 +469,7 @@ ELSE
          @__:=@__+1 -- simulate oracle's rownum
     FROM flexviews.mview_table   
    WHERE mview_id = v_mview_id
-   ORDER BY mview_join_condition, mview_join_order;   
+   ORDER BY mview_join_order, mview_join_condition;
 /*
   example:
   37, 1, 15, NULL, 1
