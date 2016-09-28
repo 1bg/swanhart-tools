@@ -83,7 +83,7 @@ BEGIN
        -- CALL flexviews.add_expr(v_new_mview_id, 'UNIQUE', flexviews.get_delta_aliases(v_new_mview_id,'',TRUE), 'UK');
 
        -- Build the new view (this could be recursive...)
-       SET max_sp_recursion_depth=999;
+       SET max_sp_recursion_depth=255;
        SET unique_checks=off;
        CALL flexviews.enable(v_new_mview_id);
        SET unique_checks=on;
