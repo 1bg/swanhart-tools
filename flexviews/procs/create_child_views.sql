@@ -60,8 +60,9 @@ BEGIN
              mview_table_alias,
              mview_join_condition,
              mview_join_order
-        FROM flexviews.mview_table
-       WHERE mview_id = v_mview_id;
+      FROM flexviews.mview_table
+      WHERE mview_id = v_mview_id
+      ORDER BY mview_join_order, mview_join_condition;
 
 
       -- Copy the GB projections and any selections (where clauses) to the new view 
