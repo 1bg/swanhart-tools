@@ -24,7 +24,7 @@ define('SOURCE', 'source');
 define('DEST', 'dest');
 require_once('plugin_interface.php');
 
-/* 
+/*
 The exit/die() functions normally exit with error code 0 when a string is passed in.
 We want to exit with error code 1 when a string is passed in.
 */
@@ -44,9 +44,8 @@ function echo1($message)
 	fputs(isset($ERROR_FILE) && is_resource($ERROR_FILE) ? $ERROR_FILE : STDERR, $message);
 }
 
-function my_mysql_query($a, $b = null, $debug = false)
-{
-	if ($b === null) {
+function my_mysql_query($a, $b=NULL, $debug=false, $ignore_error=false) {
+	if($b === NULL) {
 		die1("You must pass a connection link as the second parameter to my_mysql_query\n");
 	}
 
@@ -57,7 +56,7 @@ function my_mysql_query($a, $b = null, $debug = false)
 	mysqli_ping($b);
 	$r = mysqli_query($b, $a);
 
-	if (!$r) {
+	if(!$r && !$ignore_error) {
 		echo1("SQL_ERROR IN STATEMENT:\n$a\n");
 		if ($debug) {
 			$pr = mysqli_error($b);
@@ -271,7 +270,7 @@ EOREGEX;
 
 	#Construct a new consumer object.
 	#By default read settings from the INI file unless they are passed
-	#into the constructor	
+	#into the constructor
 
 	public function get_dest($new = false)
 	{
@@ -1108,10 +1107,8 @@ EOREGEX;
 				break;
 
 			case 'SET':
-				// TODO: temporary fix for MariaDB comments, this is disgusting
-				$sql = str_replace(['/', '*', '!'], '', $sql);
-
-				my_mysql_query($sql, $this->dest);
+        $sql = rtrim($sql, '*/;!\\');
+				my_mysql_query($sql, $this->dest, false, true);
 				break;
 
 			case 'USE':

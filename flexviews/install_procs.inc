@@ -19,7 +19,8 @@ If not, see
 */
 
 USE flexviews;
-
+\. ./procs/asof.sql
+\. ./procs/copy.sql
 \. ./procs/quote_name.sql
 \. ./procs/add_expr.sql
 \. ./procs/add_table.sql

@@ -35,7 +35,9 @@ BEGIN
    -- Destroy any existing child materialization
    SET v_new_mview_id := flexviews.get_id(flexviews.get_setting('mvlog_db'), concat('mv$', v_mview_id));
    IF v_new_mview_id is not null and v_new_mview_id != 0 THEN
-     CALL flexviews.disable(v_new_mview_id);
+     set @fv_force := 1;
+     set @fv_silent := 1;
+     CALL flexviews.drop(v_new_mview_id);
      DELETE from flexviews.mview_expression where mview_id = v_new_mview_id;
      DELETE from flexviews.mview_table where mview_id = v_new_mview_id;
      DELETE from flexviews.mview where mview_id = v_new_mview_id;
