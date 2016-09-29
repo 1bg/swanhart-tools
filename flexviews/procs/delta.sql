@@ -1,7 +1,7 @@
 -- This file contains all the functions and procedures
 -- related to inserting deltas into the mv delta table
 DELIMITER ;;
-/*  Flexviews for MySQL 
+/*  Flexviews for MySQL
     Copyright 2008 Justin Swanhart
 
     FlexViews is free software: you can redistribute it and/or modify
@@ -47,12 +47,12 @@ call flexviews.update_refresh_step_info(v_mview_id,'APPLY_BEGIN');
 
 SELECT mview_name,
        mview_schema,
-       CONCAT(mview_schema, '.', mview_name, '_delta'), 
+       CONCAT(mview_schema, '.', mview_name, '_delta'),
        incremental_hwm,
-       refreshed_to_uow_id,  
+       refreshed_to_uow_id,
        mview_refresh_type,
-       CONCAT(mview_schema, '.', mview_name) 
-  INTO v_mview_name, 
+       CONCAT(mview_schema, '.', mview_name)
+  INTO v_mview_name,
        v_mview_schema,
        v_delta_table,
        v_incremental_hwm,
@@ -66,7 +66,7 @@ IF v_mview_refresh_type != 'INCREMENTAL' THEN
   CALL flexviews.signal('NOT AN INCREMENTAL REFRESH MV');
 END IF;
 
--- Refresh up until NOW() unless otherwise specified 
+-- Refresh up until NOW() unless otherwise specified
 IF v_until_uow_id IS NULL OR v_until_uow_id = 0 THEN
   SET v_until_uow_id = flexviews.uow_from_dtime(now());
 END IF;
@@ -78,7 +78,7 @@ IF NOT flexviews.has_aggregates(v_mview_id) THEN
                     v_delta_table,' where uow_id > ', v_refreshed_to_uow_id, ' and uow_id <= ', v_until_uow_id);
   set @v_sql = v_sql;
   PREPARE insert_stmt from @v_sql;
-  EXECUTE insert_stmt; 
+  EXECUTE insert_stmt;
   DEALLOCATE PREPARE insert_stmt;
 
   BEGIN
@@ -87,32 +87,32 @@ IF NOT flexviews.has_aggregates(v_mview_id) THEN
     DECLARE v_uow_id bigint;
     DECLARE v_done BOOLEAN DEFAULT FALSE;
     DECLARE gsn_cur cursor for select * from apply_gsn order by uow_id, gsn;
-    
+
     DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET v_done=TRUE;
     -- suppress DROP IF EXISTS warnings
     DECLARE CONTINUE HANDLER FOR 1051
     BEGIN END;
-    
+
     SET v_done = false;
     OPEN gsn_cur;
     gsnLoop: LOOP
 
       FETCH gsn_cur
-       INTO v_uow_id, 
+       INTO v_uow_id,
             v_dml_type,
             v_gsn;
-          
+
       IF v_done THEN
         CLOSE gsn_cur;
         LEAVE gsnLoop;
       END IF;
 
       IF v_dml_type = 1 THEN
-        set v_sql = CONCAT('INSERT INTO ', v_mview_fqn, 
-                           ' SELECT NULL,', flexviews.get_delta_aliases(v_mview_id,'',FALSE), 
-                           '   FROM ', v_delta_table, 
+        set v_sql = CONCAT('INSERT INTO ', v_mview_fqn,
+                           ' SELECT NULL,', flexviews.get_delta_aliases(v_mview_id,'',FALSE),
+                           '   FROM ', v_delta_table,
                            '  WHERE uow_id=', v_uow_id,
-                           '    AND fv$gsn=', v_gsn); 
+                           '    AND fv$gsn=', v_gsn);
       ELSE
         SET v_sql = CONCAT(' DELETE ', v_mview_fqn, '.*',
                            '   FROM ', v_mview_fqn,
@@ -123,7 +123,7 @@ IF NOT flexviews.has_aggregates(v_mview_id) THEN
 
       SET @v_sql = v_sql;
       PREPARE stmt from @v_sql;
-      EXECUTE stmt; 
+      EXECUTE stmt;
       DEALLOCATE PREPARE stmt;
     END LOOP;
 
@@ -139,7 +139,7 @@ ELSE -- this mview has aggregates
      AND mview_expression = '*'
    LIMIT 1; -- use limit just in case there is more than one count(*), though why that would be is beyond me...
 
-  IF v_cnt_column IS NULL then 
+  IF v_cnt_column IS NULL then
     call flexviews.signal('NO COUNT(*) found on materialized view');
   END IF;
 
@@ -159,12 +159,12 @@ ELSE -- this mview has aggregates
   END IF;
 
   IF flexviews.has_aggregates(v_mview_id) THEN
-    SELECT COUNT(*) = 0 
+    SELECT COUNT(*) = 0
       INTO v_only_agg
       from flexviews.mview_expression
      where mview_id = v_mview_id
        and (mview_expr_type = 'GROUP' or mview_expr_type = 'COLUMN');
-   
+
   END IF;
 
   IF v_only_agg THEN
@@ -177,7 +177,7 @@ ELSE -- this mview has aggregates
   SET v_sql = CONCAT(v_sql, get_delta_aliases(v_mview_id, '', FALSE), ' ',
                      '  FROM ', v_delta_table, ' as x_select_',
                      ' WHERE uow_id > ', v_refreshed_to_uow_id,
-                     '   AND uow_id <= ', v_until_uow_id, 
+                     '   AND uow_id <= ', v_until_uow_id,
                      '   AND dml_type IS NOT NULL ');
 
   SET v_sql = get_insert(v_mview_id, v_sql);
@@ -202,10 +202,10 @@ IF v_cnt_column is not null THEN
                          '  JOIN ( SELECT ', flexviews.get_delta_aliases(v_mview_id, 'mview', TRUE),
                                           ',SUM(', v_cnt_column,') _cnt ',
                                   '  FROM ', v_mview_schema, '.', v_mview_name, ' as mview ',
-                                  '  NATURAL JOIN ( select distinct ', flexviews.get_delta_aliases(v_mview_id, '',true), 
-                                            ' from ', v_mview_schema, '.', v_mview_name, '_delta ', 
+                                  '  NATURAL JOIN ( select distinct ', flexviews.get_delta_aliases(v_mview_id, '',true),
+                                            ' from ', v_mview_schema, '.', v_mview_name, '_delta ',
                                   '       ) x_select ',
-                         ' GROUP BY ', flexviews.get_delta_aliases(v_mview_id, 'mview', TRUE), 
+                         ' GROUP BY ', flexviews.get_delta_aliases(v_mview_id, 'mview', TRUE),
                          ' HAVING _cnt <= 0) delta ',
                          ' USING ( ', flexviews.get_delta_aliases(v_mview_id, '', true), ')',
                          ' WHERE ', flexviews.get_delta_join(v_mview_id)
@@ -233,7 +233,7 @@ END IF;
   PREPARE delete_stmt FROM @v_sql;
   EXECUTE delete_stmt;
   DEALLOCATE PREPARE delete_stmt;
-  
+
   -- Fix aggregate tables without group by attributes when they go to zero rows
   SET v_sql = CONCAT('SELECT COUNT(*) INTO @mv_count FROM (select 1 from  ', v_mview_schema, '.', v_mview_name, ' LIMIT 1) x_select ');
   SET @v_sql = v_sql;
@@ -315,10 +315,10 @@ tableLoop: LOOP
 
   IF v_where_clause != '' THEN
     SET v_where_clause = CONCAT(v_where_clause, ' AND ');
-  END IF;  
+  END IF;
 
   SET v_where_clause = CONCAT(v_where_clause, v_mview_table_alias,'.uow_id >', v_uow_id_start,
-                              ' AND ', v_mview_table_alias, '.uow_id <=', v_uow_id_end); 
+                              ' AND ', v_mview_table_alias, '.uow_id <=', v_uow_id_end);
 END LOOP;
 
 IF(v_where_clause != '' AND LOWER(SUBSTR(trim(v_where_clause),1,5)) != 'where') THEN
@@ -331,8 +331,8 @@ END;;
 
 DROP PROCEDURE IF EXISTS flexviews.execute_refresh_step;;
 CREATE DEFINER=flexviews@localhost PROCEDURE flexviews.execute_refresh_step (
-IN v_mview_id INT, 
-IN v_depth INT, 
+IN v_mview_id INT,
+IN v_depth INT,
 IN v_method TINYINT,
 IN v_mview_table_id INT,
 OUT v_uow_id BIGINT
@@ -371,13 +371,13 @@ SELECT mview_table_alias
   INTO v_mview_table_alias
   FROM flexviews.mview_table
  WHERE mview_table_id = v_mview_table_id;
- 
+
 SET v_select_clause = CONCAT('SELECT (', v_mview_table_alias, '.dml_type * ', v_method, ') as dml_type,', flexviews.get_delta_least_uowid(v_depth), ' as uow_id,', @least_gsn ,' as fv$gsn ', IF(v_select_clause != '', concat(',', v_select_clause), ''));
 
 
 SET v_from_clause = flexviews.get_delta_from(v_depth);
 
-SET v_sql = CONCAT(v_select_clause, '\n', v_from_clause, '\n', v_where_clause); 
+SET v_sql = CONCAT(v_select_clause, '\n', v_from_clause, '\n', v_where_clause);
 
 
 IF v_group_clause != "" THEN
@@ -388,7 +388,7 @@ ELSE
 
 END IF;
 
- 
+
 
 CALL flexviews.rlog(v_sql);
 
@@ -401,7 +401,7 @@ END;;
 DROP PROCEDURE IF EXISTS flexviews.execute_refresh;;
 CREATE DEFINER=flexviews@localhost PROCEDURE flexviews.execute_refresh(
 IN v_mview_id INT,
-IN v_start_uow_id BIGINT, 
+IN v_start_uow_id BIGINT,
 IN v_until_uow_id BIGINT,
 IN v_method TINYINT
 )
@@ -418,7 +418,7 @@ DECLARE v_exec_uow_id BIGINT;
 
 DECLARE v_recurse TINYINT;
 
--- if we recurse, this will be the next depth 
+-- if we recurse, this will be the next depth
 DECLARE v_next_depth TINYINT;
 
 -- suppress DROP IF EXISTS warnings
@@ -447,27 +447,27 @@ ELSE
   SET @__ = 0; -- counter for "rownum"
   SET @__compute_delta_depth = 1;
 
- 
+
   CREATE TEMPORARY TABLE flexviews.table_list (
     mview_table_id INT,
              depth TINYINT,
       uow_id_start BIGINT,
         uow_id_end BIGINT DEFAULT NULL,
-               idx TINYINT,  
-    KEY USING BTREE(depth, idx) 
+               idx TINYINT,
+    KEY USING BTREE(depth, idx)
   ) ENGINE=MEMORY;
 
 
-  CREATE TEMPORARY TABLE flexviews.table_list_old 
+  CREATE TEMPORARY TABLE flexviews.table_list_old
     LIKE flexviews.table_list;
-  
+
   INSERT INTO flexviews.table_list
-  SELECT mview_table_id, 
+  SELECT mview_table_id,
          @__compute_delta_depth,
-         v_start_uow_id, 
+         v_start_uow_id,
          NULL,
          @__:=@__+1 -- simulate oracle's rownum
-    FROM flexviews.mview_table   
+    FROM flexviews.mview_table
    WHERE mview_id = v_mview_id
    ORDER BY mview_join_order, mview_join_condition;
 /*
@@ -475,10 +475,10 @@ ELSE
   37, 1, 15, NULL, 1
   38, 2, 15, NULL, 2
   It contains one row per table involved in the materialized view (v_mview_id).
-  Depth is required because compute_delta is recursive and populates values 
-  into the table.  The procedure always inserts into flexviews.table_list with 
+  Depth is required because compute_delta is recursive and populates values
+  into the table.  The procedure always inserts into flexviews.table_list with
   depth = current_depth + 1 and updates table_list with current_depth.
-  The current_depth is tracked in a session variable called @__compute_delta_depth.  
+  The current_depth is tracked in a session variable called @__compute_delta_depth.
   If a select is from a log table (delta table) then uow_id_end is NOT NULL.
 
 */
@@ -490,10 +490,10 @@ END IF;  -- setup complete
 -- We need to restore the originals so save them.
 
 DELETE FROM flexviews.table_list_old WHERE depth >= @__compute_delta_depth;
-INSERT INTO flexviews.table_list_old 
-SELECT * 
-  FROM flexviews.table_list 
- WHERE depth = @__compute_delta_depth; 
+INSERT INTO flexviews.table_list_old
+SELECT *
+  FROM flexviews.table_list
+ WHERE depth = @__compute_delta_depth;
 
 -- execute one query for v_cur_base_table_num = 1 to v_table_count
 -- recurse to execute compensation queries for each base table query
@@ -506,15 +506,15 @@ considerRelationLoop: LOOP
 
   IF v_consider_base_table_num > 1 THEN
     DELETE FROM flexviews.table_list where depth >= @__compute_delta_depth;
-    INSERT INTO flexviews.table_list 
-    SELECT * 
-      FROM flexviews.table_list_old 
+    INSERT INTO flexviews.table_list
+    SELECT *
+      FROM flexviews.table_list_old
      WHERE depth = @__compute_delta_depth;
   END IF;
 
   -- only consider recursing into base tables (not DELTA tables)
 
-  SELECT uow_id_start, 
+  SELECT uow_id_start,
          uow_id_end,
          mview_table_id
     INTO v_uow_start,
@@ -523,19 +523,19 @@ considerRelationLoop: LOOP
     FROM flexviews.table_list
    WHERE depth = @__compute_delta_depth
      AND idx = v_consider_base_table_num;
- 
+
   IF v_uow_end IS NULL THEN
-    IF v_uow_start < v_until_uow_id THEN 
+    IF v_uow_start < v_until_uow_id THEN
       SET v_base_table_num = 0;
       baseRelationLoop: LOOP
         SET v_base_table_num = v_base_table_num + 1;
         IF v_base_table_num > v_table_count THEN
           LEAVE baseRelationLoop;
         END IF;
-        SELECT uow_id_start, 
+        SELECT uow_id_start,
                uow_id_end
-          INTO v_uow_start, 
-               v_uow_end 
+          INTO v_uow_start,
+               v_uow_end
           FROM flexviews.table_list
          WHERE depth = @__compute_delta_depth
            AND idx = v_base_table_num;
@@ -548,7 +548,7 @@ considerRelationLoop: LOOP
                  WHERE depth = @__compute_delta_depth
                    AND idx = v_base_table_num;
 
-            
+
           ELSEIF v_base_table_num = v_consider_base_table_num THEN
  		UPDATE flexviews.table_list
                    SET uow_id_start = v_uow_start,
@@ -566,42 +566,42 @@ considerRelationLoop: LOOP
 
           END IF;
         END IF;
-      END LOOP baseRelationLoop; 
+      END LOOP baseRelationLoop;
       SET @EXEC=@EXEC + 1;
-      
-     
+
+
       -- execute the SQL statements necessary to populate the mview delta
       -- for this step of the refresh plan
 
       CALL flexviews.execute_refresh_step(v_mview_id, @__compute_delta_depth, v_method, v_mview_table_id,v_exec_uow_id);
 
       -- if any base tables remain in the SQL for the current depth
-      SELECT IFNULL(COUNT(*),0) 
+      SELECT IFNULL(COUNT(*),0)
         INTO v_recurse
         FROM flexviews.table_list
        WHERE depth = @__compute_delta_depth
          AND uow_id_end IS NULL;
-      
+
       IF v_recurse != 0  THEN
-        CREATE TEMPORARY TABLE x as 
+        CREATE TEMPORARY TABLE x as
         (SELECT mview_table_id,
-                depth+1, 
-                uow_id_start, 
-                uow_id_end, 
+                depth+1,
+                uow_id_start,
+                uow_id_end,
                 idx
            FROM flexviews.table_list
           WHERE depth = @__compute_delta_depth);
         REPLACE INTO flexviews.table_list
         SELECT * FROM x;
         DROP TEMPORARY TABLE x;
-        
+
         -- recurse to compensate, so multiply v_method * -1
         CALL flexviews.execute_refresh(v_mview_id, NULL, v_exec_uow_id, -v_method);
-        
+
       END IF;
-      
+
     END IF;
-  ELSE 
+  ELSE
     -- not a base table, don't consider
     ITERATE considerRelationLoop;
   END IF;
@@ -615,7 +615,7 @@ IF @__compute_delta_depth IS NULL OR @__compute_delta_depth = 0 THEN
 
 END IF;
 
-UPDATE flexviews.mview 
+UPDATE flexviews.mview
    SET incremental_hwm = v_until_uow_id
  WHERE mview_id = v_mview_id;
 
@@ -628,24 +628,24 @@ CREATE DEFINER=flexviews@localhost FUNCTION get_delta_from (
   v_depth INT
 )  RETURNS TEXT CHARACTER SET UTF8
     READS SQL DATA
-BEGIN  
-DECLARE v_done boolean DEFAULT FALSE;  
+BEGIN
+DECLARE v_done boolean DEFAULT FALSE;
 DECLARE v_mview_table_name TEXT CHARACTER SET UTF8;
 DECLARE v_mview_table_alias TEXT CHARACTER SET UTF8;
 DECLARE v_mview_table_schema TEXT CHARACTER SET UTF8;
 DECLARE v_mview_join_condition TEXT CHARACTER SET UTF8;
-DECLARE v_from_clause TEXT CHARACTER SET UTF8 default NULL;  
+DECLARE v_from_clause TEXT CHARACTER SET UTF8 default NULL;
 DECLARE v_uow_id_start BIGINT;
 DECLARE v_uow_id_end BIGINT;
 DECLARE v_mvlog_name CHAR(40) CHARACTER SET UTF8;
 
-DECLARE cur_from CURSOR 
-FOR  
+DECLARE cur_from CURSOR
+FOR
 SELECT mview_table_name,
        mview_table_schema,
        mview_table_alias,
        mview_join_condition,
-       uow_id_start, 
+       uow_id_start,
        uow_id_end,
        mvlog_name
   FROM flexviews.mview_table t
@@ -653,16 +653,16 @@ SELECT mview_table_name,
   JOIN flexviews.mvlogs logs on logs.table_name = mview_table_name
                             and logs.table_schema = mview_table_schema
  WHERE depth = v_depth
- ORDER BY idx;
+ ORDER BY mview_join_order, mview_table_id, idx;
 
-DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'    
-    SET v_done = TRUE;  
+DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'
+    SET v_done = TRUE;
 
 SET v_from_clause = '';
 
-OPEN cur_from;  
-fromLoop: LOOP    
-  FETCH cur_from 
+OPEN cur_from;
+fromLoop: LOOP
+  FETCH cur_from
    INTO v_mview_table_name,
         v_mview_table_schema,
         v_mview_table_alias,
@@ -670,16 +670,16 @@ fromLoop: LOOP
         v_uow_id_start,
         v_uow_id_end,
         v_mvlog_name;
-  
-  IF v_done THEN      
-    CLOSE cur_from;      
-    LEAVE fromLoop;    
-  END IF;    
+
+  IF v_done THEN
+    CLOSE cur_from;
+    LEAVE fromLoop;
+  END IF;
 
   SET v_from_clause = CONCAT(v_from_clause, ' ',
                              IF(v_mview_join_condition IS NULL AND v_from_clause = '' , '', ' JOIN '), ' ',
-                             IF(v_uow_id_end IS NOT NULL, flexviews.get_setting('mvlog_db'), v_mview_table_schema), 
-                             '.', 
+                             IF(v_uow_id_end IS NOT NULL, flexviews.get_setting('mvlog_db'), v_mview_table_schema),
+                             '.',
                              IF(v_uow_id_end IS NOT NULL, v_mvlog_name, v_mview_table_name), ' as ',
                              v_mview_table_alias, ' ',
                              IFNULL(v_mview_join_condition, '') );
@@ -695,14 +695,14 @@ CREATE DEFINER=flexviews@localhost FUNCTION get_delta_least_uowid (
   v_depth INT
 )  RETURNS TEXT CHARACTER SET UTF8
     READS SQL DATA
-BEGIN  
-DECLARE v_done boolean DEFAULT FALSE;  
+BEGIN
+DECLARE v_done boolean DEFAULT FALSE;
 DECLARE v_mview_table_alias TEXT CHARACTER SET UTF8;
 DECLARE v_list TEXT CHARACTER SET UTF8 default '';
 DECLARE v_delta_cnt INT default 0;
 DECLARE v_mview_id INT;
-DECLARE cur_from CURSOR 
-FOR  
+DECLARE cur_from CURSOR
+FOR
 SELECT mview_table_alias,
        mview_id
   FROM flexviews.mview_table t
@@ -710,19 +710,19 @@ SELECT mview_table_alias,
  WHERE depth = v_depth
    AND uow_id_end IS NOT NULL;
 
-DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'    
-    SET v_done = TRUE;  
+DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'
+    SET v_done = TRUE;
 
-OPEN cur_from;  
-fromLoop: LOOP    
-  FETCH cur_from 
+OPEN cur_from;
+fromLoop: LOOP
+  FETCH cur_from
    INTO v_mview_table_alias,
         v_mview_id;
-  
-  IF v_done THEN      
-    CLOSE cur_from;      
-    LEAVE fromLoop;    
-  END IF;    
+
+  IF v_done THEN
+    CLOSE cur_from;
+    LEAVE fromLoop;
+  END IF;
 
   IF v_list != '' THEN
     SET v_list = CONCAT(v_list, ',');
@@ -745,14 +745,14 @@ CREATE DEFINER=flexviews@localhost FUNCTION get_delta_least_gsn (
   v_depth INT
 )  RETURNS TEXT CHARACTER SET UTF8
     READS SQL DATA
-BEGIN  
-DECLARE v_done boolean DEFAULT FALSE;  
+BEGIN
+DECLARE v_done boolean DEFAULT FALSE;
 DECLARE v_mview_table_alias TEXT CHARACTER SET UTF8;
 DECLARE v_list TEXT CHARACTER SET UTF8 default '';
 DECLARE v_delta_cnt INT default 0;
 DECLARE v_mview_id INT;
-DECLARE cur_from CURSOR 
-FOR  
+DECLARE cur_from CURSOR
+FOR
 SELECT mview_table_alias,
        mview_id
   FROM flexviews.mview_table t
@@ -760,19 +760,19 @@ SELECT mview_table_alias,
  WHERE depth = v_depth
    AND uow_id_end IS NOT NULL;
 
-DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'    
-    SET v_done = TRUE;  
+DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'
+    SET v_done = TRUE;
 
-OPEN cur_from;  
-fromLoop: LOOP    
-  FETCH cur_from 
+OPEN cur_from;
+fromLoop: LOOP
+  FETCH cur_from
    INTO v_mview_table_alias,
         v_mview_id;
-  
-  IF v_done THEN      
-    CLOSE cur_from;      
-    LEAVE fromLoop;    
-  END IF;    
+
+  IF v_done THEN
+    CLOSE cur_from;
+    LEAVE fromLoop;
+  END IF;
 
   IF v_list != '' THEN
     SET v_list = CONCAT(v_list, ',');
@@ -793,21 +793,21 @@ DELIMITER ;;
 
 DROP FUNCTION IF EXISTS `get_delta_aliases`;;
 
-CREATE DEFINER=flexviews@localhost FUNCTION `get_delta_aliases`(  
-v_mview_id INT, 
-v_prefix TEXT CHARACTER SET UTF8, 
+CREATE DEFINER=flexviews@localhost FUNCTION `get_delta_aliases`(
+v_mview_id INT,
+v_prefix TEXT CHARACTER SET UTF8,
 v_only_groupby BOOLEAN
 )
- RETURNS TEXT CHARACTER SET UTF8 
+ RETURNS TEXT CHARACTER SET UTF8
 READS SQL DATA
-BEGIN  
-DECLARE v_done boolean DEFAULT FALSE;  
+BEGIN
+DECLARE v_done boolean DEFAULT FALSE;
 DECLARE v_mview_expr_type TEXT CHARACTER SET UTF8;
 DECLARE v_mview_expression TEXT CHARACTER SET UTF8;
 DECLARE v_mview_alias TEXT CHARACTER SET UTF8;
-DECLARE v_select_list TEXT CHARACTER SET UTF8 default '';  
-DECLARE cur_select CURSOR 
-FOR  
+DECLARE v_select_list TEXT CHARACTER SET UTF8 default '';
+DECLARE cur_select CURSOR
+FOR
 SELECT IF(mview_expr_type='COLUMN' and v_only_groupby = true,'GROUP',mview_expr_type) ,
        mview_expression,
        mview_alias
@@ -815,76 +815,76 @@ SELECT IF(mview_expr_type='COLUMN' and v_only_groupby = true,'GROUP',mview_expr_
  WHERE m.mview_id = v_mview_id
    AND m.mview_expr_type in ('AVG','COLUMN', 'GROUP','COUNT','SUM')
    AND NOT trim(mview_expr_type = 'COLUMN' and mview_expression = '*')
- ORDER BY mview_expr_order;  
+ ORDER BY mview_expr_order;
 
-DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'    
-    SET v_done = TRUE;  
+DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'
+    SET v_done = TRUE;
 
 IF v_prefix != '' AND v_prefix IS NOT NULL THEN
   SET v_prefix = CONCAT(v_prefix, '.');
 END IF;
 
-OPEN cur_select;  
+OPEN cur_select;
 
-selectLoop: LOOP    
-  FETCH cur_select 
+selectLoop: LOOP
+  FETCH cur_select
    INTO v_mview_expr_type,
         v_mview_expression,
         v_mview_alias;
-  
-  IF v_done THEN      
-    CLOSE cur_select;      
-    LEAVE selectLoop;    
-  END IF;    
- 
+
+  IF v_done THEN
+    CLOSE cur_select;
+    LEAVE selectLoop;
+  END IF;
+
   IF v_only_groupby = TRUE AND v_mview_expr_type != 'GROUP' THEN
     ITERATE selectLoop;
   END IF;
- 
-  IF v_select_list != '' THEN      
-    SET v_select_list = CONCAT(v_select_list, ', ');    
-  END IF;    
 
-  SET v_select_list = CONCAT(v_select_list, v_prefix, v_mview_alias);   
-
-  IF v_mview_expr_type = 'AVG' THEN
-    SET v_select_list = CONCAT(v_select_list,',', v_prefix, v_mview_alias, '_cnt');   
-    SET v_select_list = CONCAT(v_select_list,',', v_prefix, v_mview_alias, '_sum');   
+  IF v_select_list != '' THEN
+    SET v_select_list = CONCAT(v_select_list, ', ');
   END IF;
 
-END LOOP;  
+  SET v_select_list = CONCAT(v_select_list, v_prefix, v_mview_alias);
+
+  IF v_mview_expr_type = 'AVG' THEN
+    SET v_select_list = CONCAT(v_select_list,',', v_prefix, v_mview_alias, '_cnt');
+    SET v_select_list = CONCAT(v_select_list,',', v_prefix, v_mview_alias, '_sum');
+  END IF;
+
+END LOOP;
 RETURN v_select_list;
 END ;;
 
 DROP FUNCTION IF EXISTS flexviews.get_delta_select;;
 
-CREATE DEFINER=flexviews@localhost FUNCTION flexviews.get_delta_select(  
+CREATE DEFINER=flexviews@localhost FUNCTION flexviews.get_delta_select(
 v_mview_id INT,
 v_method INT,
 v_mview_table_id INT )
- RETURNS TEXT CHARACTER SET UTF8 
+ RETURNS TEXT CHARACTER SET UTF8
 READS SQL DATA
-BEGIN  
-DECLARE v_done boolean DEFAULT FALSE;  
+BEGIN
+DECLARE v_done boolean DEFAULT FALSE;
 DECLARE v_mview_expr_type TEXT CHARACTER SET UTF8;
 DECLARE v_mview_expression TEXT CHARACTER SET UTF8;
 DECLARE v_mview_alias TEXT CHARACTER SET UTF8;
-DECLARE v_select_list TEXT CHARACTER SET UTF8 default '';  
+DECLARE v_select_list TEXT CHARACTER SET UTF8 default '';
 DECLARE v_dml_type TEXT CHARACTER SET UTF8;
 DECLARE v_mview_table_alias TEXT CHARACTER SET UTF8;
-DECLARE cur_select CURSOR 
-FOR  
-SELECT mview_expr_type, 
-       mview_expression, 
+DECLARE cur_select CURSOR
+FOR
+SELECT mview_expr_type,
+       mview_expression,
        mview_alias
   FROM flexviews.mview_expression m
  WHERE m.mview_id = v_mview_id
    AND m.mview_expr_type in ('COUNT','GROUP','SUM','COLUMN','AVG','MIN','MAX','COUNT_DISTINCT', 'STDDEV_POP','VAR_POP', 'STDDEV_SAMP','VAR_SAMP','GROUP_CONCAT','BIT_AND','BIT_OR','BIT_XOR','PERCENTILE')
    AND NOT (m.mview_expr_type = 'COLUMN' and trim(mview_expression) = '*')
- ORDER BY mview_expr_order;  
+ ORDER BY mview_expr_order;
 
-DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'    
-    SET v_done = TRUE;  
+DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'
+    SET v_done = TRUE;
 
 SELECT mview_table_alias
   INTO v_mview_table_alias
@@ -893,22 +893,22 @@ SELECT mview_table_alias
 
 SET v_dml_type = CONCAT('(', v_mview_table_alias, '.dml_type * ', v_method, ')');
 
-OPEN cur_select;  
+OPEN cur_select;
 
-selectLoop: LOOP    
-  FETCH cur_select 
+selectLoop: LOOP
+  FETCH cur_select
    INTO v_mview_expr_type,
         v_mview_expression,
         v_mview_alias;
-  
-  IF v_done THEN      
-    CLOSE cur_select;      
-    LEAVE selectLoop;    
-  END IF;    
-  
-  IF v_select_list != '' THEN      
-    SET v_select_list = CONCAT(v_select_list, ', ');    
-  END IF;    
+
+  IF v_done THEN
+    CLOSE cur_select;
+    LEAVE selectLoop;
+  END IF;
+
+  IF v_select_list != '' THEN
+    SET v_select_list = CONCAT(v_select_list, ', ');
+  END IF;
 
   IF v_mview_expr_type = 'GROUP' OR v_mview_expr_type = 'COLUMN' THEN
     SET v_mview_expression = CONCAT('(', v_mview_expression, ')');
@@ -929,29 +929,29 @@ selectLoop: LOOP
   END IF;
 
   IF v_mview_expr_type != 'AVG' THEN
-    SET v_select_list = CONCAT(v_select_list,v_mview_expression, ' as `', v_mview_alias, '`');   
+    SET v_select_list = CONCAT(v_select_list,v_mview_expression, ' as `', v_mview_alias, '`');
   ELSE
-    SET v_select_list = CONCAT(v_select_list, 0, ' as `', v_mview_alias, '`,');   
+    SET v_select_list = CONCAT(v_select_list, 0, ' as `', v_mview_alias, '`,');
     SET v_select_list = CONCAT(v_select_list, 'SUM(',v_dml_type, ' * cast(', v_mview_expression, ' as decimal(50,15))) as `', v_mview_alias, '_sum`,');
     SET v_select_list = CONCAT(v_select_list, 'SUM(IF(',v_mview_expression,' IS NULL,0,', v_dml_type, ')) as `', v_mview_alias, '_cnt`');
   END IF;
-END LOOP;  
+END LOOP;
 
 RETURN v_select_list;
 END ;;
 
 DROP FUNCTION IF EXISTS `has_aggregates`;;
 
-CREATE DEFINER=flexviews@localhost FUNCTION  `has_aggregates`(  
+CREATE DEFINER=flexviews@localhost FUNCTION  `has_aggregates`(
 v_mview_id INT
 )
 RETURNS BOOLEAN
 READS SQL DATA
-BEGIN  
+BEGIN
 DECLARE v_count INT;
 
 SELECT COUNT(*)
-  INTO v_count    
+  INTO v_count
   FROM flexviews.mview_expression m
  WHERE m.mview_id = v_mview_id
    AND m.mview_expr_type not in ('COLUMN','KEY','WHERE','PRIMARY','UNIQUE');
@@ -967,36 +967,36 @@ CREATE DEFINER=flexviews@localhost FUNCTION flexviews.get_delta_groupby(
   v_mview_id INT
 )  RETURNS TEXT CHARACTER SET UTF8
     READS SQL DATA
-BEGIN  
-DECLARE v_done boolean DEFAULT FALSE;  
-DECLARE v_mview_expr_type TINYTEXT CHARACTER SET UTF8;  
-DECLARE v_mview_expression TEXT CHARACTER SET UTF8; 
-DECLARE v_mview_alias TINYTEXT CHARACTER SET UTF8;  
-DECLARE v_group_list MEDIUMTEXT CHARACTER SET UTF8 default '';  
+BEGIN
+DECLARE v_done boolean DEFAULT FALSE;
+DECLARE v_mview_expr_type TINYTEXT CHARACTER SET UTF8;
+DECLARE v_mview_expression TEXT CHARACTER SET UTF8;
+DECLARE v_mview_alias TINYTEXT CHARACTER SET UTF8;
+DECLARE v_group_list MEDIUMTEXT CHARACTER SET UTF8 default '';
 DECLARE v_mview_alias_prefixed TINYTEXT CHARACTER SET UTF8;
-DECLARE cur_select CURSOR 
-FOR  
-SELECT mview_expr_type, 
-       mview_expression, 
+DECLARE cur_select CURSOR
+FOR
+SELECT mview_expr_type,
+       mview_expression,
        mview_alias
   FROM flexviews.mview_expression m
  WHERE m.mview_id = v_mview_id
    AND m.mview_expr_type  = 'GROUP'
- ORDER BY mview_expr_order;  
+ ORDER BY mview_expr_order;
 
-DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'    
-    SET v_done = TRUE;  
-OPEN cur_select;  
-selectLoop: LOOP    
-  FETCH cur_select 
+DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'
+    SET v_done = TRUE;
+OPEN cur_select;
+selectLoop: LOOP
+  FETCH cur_select
    INTO v_mview_expr_type,
         v_mview_expression,
         v_mview_alias;
-  
-  IF v_done THEN      
-    CLOSE cur_select;      
-    LEAVE selectLoop;    
-  END IF;    
+
+  IF v_done THEN
+    CLOSE cur_select;
+    LEAVE selectLoop;
+  END IF;
 
   IF v_group_list != '' THEN
     SET v_group_list = CONCAT(v_group_list, ', ');
@@ -1018,7 +1018,7 @@ CREATE DEFINER=flexviews@localhost FUNCTION  get_insert (
 READS SQL DATA
 BEGIN
 DECLARE v_mview_name TEXT CHARACTER SET UTF8;
-DECLARE v_mview_schema TEXT CHARACTER SET UTF8; 
+DECLARE v_mview_schema TEXT CHARACTER SET UTF8;
 DECLARE v_sql TEXT CHARACTER SET UTF8;
 DECLARE v_mview_expr_type TEXT CHARACTER SET UTF8;
 DECLARE v_mview_alias TEXT CHARACTER SET UTF8;
@@ -1026,17 +1026,17 @@ DECLARE v_mview_expression TEXT CHARACTER SET UTF8;
 DECLARE v_set_clause TEXT CHARACTER SET UTF8 default '';
 DECLARE v_done BOOLEAN DEFAULT FALSE;
 DECLARE v_only_agg BOOLEAN DEFAULT FALSE;
-DECLARE cur_expr CURSOR 
+DECLARE cur_expr CURSOR
 FOR
-SELECT mview_alias, 
+SELECT mview_alias,
        mview_expr_type
   FROM flexviews.mview_expression
  WHERE mview_id = v_mview_id
    AND mview_expr_type = 'GROUP';
 
-DECLARE cur_agg CURSOR 
+DECLARE cur_agg CURSOR
 FOR
-SELECT mview_alias, 
+SELECT mview_alias,
        mview_expr_type,
        mview_expression
   FROM flexviews.mview_expression
@@ -1052,10 +1052,10 @@ SELECT mview_name,
   INTO v_mview_name,
        v_mview_schema
   FROM flexviews.mview
- WHERE mview_id = v_mview_id; 
-   
+ WHERE mview_id = v_mview_id;
+
 /*
-SET v_sql = CONCAT('INSERT INTO ', v_mview_schema, '.', v_mview_name, '\n', 
+SET v_sql = CONCAT('INSERT INTO ', v_mview_schema, '.', v_mview_name, '\n',
 '(',flexviews.get_delta_aliases(v_mview_id, '', FALSE),')\n',
 'SELECT * FROM (', v_select_stmt ,') x_select_ \n',
 "ON DUPLICATE KEY UPDATE\n");
@@ -1071,12 +1071,12 @@ IF flexviews.has_aggregates(v_mview_id) THEN
 END IF;
 
 IF v_only_agg THEN
-  SET v_sql = CONCAT('INSERT INTO ', v_mview_schema, '.', v_mview_name, '\n', 
+  SET v_sql = CONCAT('INSERT INTO ', v_mview_schema, '.', v_mview_name, '\n',
 '(mview$pk,',flexviews.get_delta_aliases(v_mview_id, '', FALSE),')\n(',
 v_select_stmt,')\n',
 "ON DUPLICATE KEY UPDATE\n");
-ELSE 
-  SET v_sql = CONCAT('INSERT INTO ', v_mview_schema, '.', v_mview_name, '\n', 
+ELSE
+  SET v_sql = CONCAT('INSERT INTO ', v_mview_schema, '.', v_mview_name, '\n',
 '(',flexviews.get_delta_aliases(v_mview_id, '', FALSE),')\n(',
 v_select_stmt,')\n',
 "ON DUPLICATE KEY UPDATE\n");
@@ -1087,7 +1087,7 @@ SET @HERE=1;
 
 OPEN cur_agg;
 exprLoop: LOOP
-  FETCH cur_agg 
+  FETCH cur_agg
    INTO v_mview_alias,
         v_mview_expr_type,
         v_mview_expression;
@@ -1095,7 +1095,7 @@ exprLoop: LOOP
   IF v_done = TRUE THEN
     CLOSE cur_agg;
     LEAVE exprLoop;
-  END IF; 
+  END IF;
 
   IF v_set_clause != '' THEN
     SET v_set_clause = CONCAT(v_set_clause, ',');
@@ -1119,7 +1119,7 @@ DROP PROCEDURE IF EXISTS flexviews.ensure_validity;;
 
 CREATE DEFINER=flexviews@localhost PROCEDURE flexviews.ensure_validity(
 IN v_id INT
-) 
+)
 BEGIN
 DECLARE v_mview_id INT;
 DECLARE v_mview_refresh_type TEXT CHARACTER SET UTF8;
@@ -1159,20 +1159,20 @@ END IF;
 */
 
 IF flexviews.has_aggregates(v_mview_id) = 1 THEN
-  
+
   SELECT IFNULL(COUNT(*), 0)
-    INTO v_has_count_star 
+    INTO v_has_count_star
     FROM flexviews.mview_expression
    WHERE mview_id = v_mview_id
      AND mview_expression = '*'
      AND mview_expr_type = 'COUNT';
-   
+
    -- add COUNT(*) to aggregate tables if the user forgot
    -- we can't delete from the mview otherwise
    IF v_has_count_star = 0 THEN
      CALL flexviews.add_expr(v_mview_id, 'COUNT', '*', 'CNT');
    END IF;
-   
+
 END IF;
 SET v_error=0;
 
@@ -1222,48 +1222,48 @@ drop procedure if exists process_rlog;;
 
 DROP FUNCTION IF EXISTS flexviews.get_child_select;;
 
-CREATE DEFINER=flexviews@localhost FUNCTION flexviews.get_child_select(  
-v_mview_id INT, 
+CREATE DEFINER=flexviews@localhost FUNCTION flexviews.get_child_select(
+v_mview_id INT,
 v_alias TEXT CHARACTER SET UTF8
 )
  RETURNS TEXT CHARACTER SET UTF8
 READS SQL DATA
-BEGIN  
-DECLARE v_done boolean DEFAULT FALSE;  
+BEGIN
+DECLARE v_done boolean DEFAULT FALSE;
 DECLARE v_mview_expr_type TEXT CHARACTER SET UTF8;
 DECLARE v_mview_expression TEXT CHARACTER SET UTF8;
 DECLARE v_mview_alias TEXT CHARACTER SET UTF8;
-DECLARE v_select_list TEXT CHARACTER SET UTF8 default '';  
+DECLARE v_select_list TEXT CHARACTER SET UTF8 default '';
 DECLARE v_percentile int default null;
 
-DECLARE cur_select CURSOR 
-FOR  
-SELECT mview_expr_type, 
+DECLARE cur_select CURSOR
+FOR
+SELECT mview_expr_type,
        mview_alias,
        percentile
   FROM flexviews.mview_expression m
  WHERE m.mview_id = v_mview_id
    AND m.mview_expr_type in ( 'COLUMN', 'GROUP', 'MIN','MAX','COUNT_DISTINCT', 'STDDEV_SAMP','STDDEV_POP','VAR_POP','VAR_SAMP','BIT_AND','BIT_OR','BIT_XOR','GROUP_CONCAT', 'PERCENTILE' )
    AND NOT (m.mview_expr_type = 'COLUMN' and trim(m.mview_expression) = '*')
- ORDER BY mview_expr_order;  
+ ORDER BY mview_expr_order;
 
-DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'    
-    SET v_done = TRUE;  
+DECLARE CONTINUE HANDLER FOR  SQLSTATE '02000'
+    SET v_done = TRUE;
 
-OPEN cur_select;  
+OPEN cur_select;
 
-selectLoop: LOOP    
-  FETCH cur_select 
+selectLoop: LOOP
+  FETCH cur_select
    INTO v_mview_expr_type,
         v_mview_alias,
         v_percentile;
-  
-  IF v_done THEN      
-    CLOSE cur_select;      
-    LEAVE selectLoop;    
-  END IF;    
 
-  SET v_mview_expression := CONCAT('(`', v_alias, '`.`', v_mview_alias, '`)'); 
+  IF v_done THEN
+    CLOSE cur_select;
+    LEAVE selectLoop;
+  END IF;
+
+  SET v_mview_expression := CONCAT('(`', v_alias, '`.`', v_mview_alias, '`)');
 
   IF v_mview_expr_type != 'GROUP' AND v_mview_expr_type != 'COLUMN' THEN
     IF v_mview_expr_type = 'COUNT_DISTINCT' THEN
@@ -1274,14 +1274,14 @@ selectLoop: LOOP
       SET v_mview_expression := CONCAT(v_mview_expr_type, v_mview_expression);
     END IF;
   END IF;
-  
-  IF v_select_list != '' THEN      
-    SET v_select_list := CONCAT(v_select_list, ', ');    
-  END IF;    
+
+  IF v_select_list != '' THEN
+    SET v_select_list := CONCAT(v_select_list, ', ');
+  END IF;
 
   SET v_select_list := CONCAT(v_select_list, v_mview_expression, ' as `', v_mview_alias , '`' );
 
-END LOOP;  
+END LOOP;
 
 RETURN CONCAT('NULL as mview$pk,',v_select_list);
 END ;;
@@ -1289,13 +1289,13 @@ END ;;
 
 DROP FUNCTION IF EXISTS `get_delta_join`;;
 
-CREATE DEFINER=flexviews@localhost FUNCTION `get_delta_join`(  
-v_mview_id INT 
+CREATE DEFINER=flexviews@localhost FUNCTION `get_delta_join`(
+v_mview_id INT
 )
    RETURNS TEXT CHARACTER SET UTF8
   NOT DETERMINISTIC
   READS SQL DATA
-BEGIN  
+BEGIN
   RETURN (
       SELECT
         GROUP_CONCAT(
